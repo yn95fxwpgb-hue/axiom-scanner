@@ -1,0 +1,537 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>⚡ Axiom Scanner</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #030712;
+    --surface:  #0c1425;
+    --surface2: #111f35;
+    --border:   #1a2f4a;
+    --text:     #e2eaf4;
+    --muted:    #4a6070;
+    --dim:      #283545;
+    --green:    #10b981;
+    --red:      #ef4444;
+    --amber:    #f59e0b;
+    --blue:     #60a5fa;
+    --pro:      #f59e0b;
+  }
+
+  html, body { background: var(--bg); color: var(--text); font-family: 'IBM Plex Mono', monospace; min-height: 100vh; }
+
+  /* ── Scrollbar ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  /* ── Header ── */
+  #header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px 20px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-wrap: wrap;
+  }
+
+  .brand { display: flex; align-items: center; gap: 10px; }
+  .brand-name { font-size: 15px; font-weight: 700; letter-spacing: 2px; }
+  .brand-sub { font-size: 9px; color: var(--dim); letter-spacing: 1px; margin-top: 1px; }
+
+  /* ── Buttons ── */
+  .tabs { display: flex; gap: 4px; }
+  .tab-btn {
+    background: transparent; border: 1px solid transparent;
+    color: var(--muted); padding: 5px 14px; border-radius: 6px;
+    cursor: pointer; font-family: inherit; font-size: 11px; font-weight: 600;
+    letter-spacing: 1px; transition: all .15s;
+  }
+  .tab-btn.active { background: #1a3a5c; border-color: #2563eb; color: var(--blue); }
+  .tab-btn:hover:not(.active) { color: var(--text); border-color: var(--border); }
+
+  .sub-btn {
+    background: transparent; border: 1px solid transparent;
+    color: var(--muted); padding: 4px 12px; border-radius: 5px;
+    cursor: pointer; font-family: inherit; font-size: 10px; font-weight: 600; transition: all .15s;
+  }
+  .sub-btn.active { background: #14532d; border-color: #16a34a; color: #4ade80; }
+
+  #reload-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    color: var(--blue); padding: 6px 16px; border-radius: 6px;
+    cursor: pointer; font-family: inherit; font-size: 12px; font-weight: 600;
+    transition: all .15s;
+  }
+  #reload-btn:hover { background: #1a3a5c; border-color: #2563eb; }
+  #reload-btn:disabled { color: var(--muted); cursor: default; }
+
+  #filter-input {
+    margin-left: auto; background: var(--surface); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); padding: 6px 12px;
+    font-size: 12px; font-family: inherit; outline: none; width: 160px;
+    transition: border-color .15s;
+  }
+  #filter-input:focus { border-color: var(--blue); }
+
+  #meta { font-size: 10px; color: var(--muted); white-space: nowrap; }
+
+  /* ── Legend ── */
+  #legend {
+    background: #070e1c; border-bottom: 1px solid #0d1a2a;
+    padding: 5px 20px; display: flex; gap: 20px; font-size: 10px;
+    color: var(--dim); flex-wrap: wrap;
+  }
+
+  /* ── Status messages ── */
+  #status-bar {
+    padding: 10px 20px; font-size: 12px;
+    border-bottom: 1px solid var(--border); display: none;
+  }
+  #status-bar.info  { background: #0f2040; color: var(--blue);  display: block; }
+  #status-bar.error { background: #3f0000; color: #fca5a5;      display: block; }
+
+  /* ── Empty state ── */
+  #empty {
+    text-align: center; padding: 80px 20px; color: var(--muted);
+  }
+  #empty .icon { font-size: 48px; margin-bottom: 16px; }
+  #empty h2 { font-size: 15px; margin-bottom: 8px; color: var(--text); }
+  #empty p { font-size: 12px; color: var(--dim); margin-bottom: 24px; }
+  #start-btn {
+    background: #1a3a5c; border: 1px solid #2563eb; color: var(--blue);
+    padding: 10px 28px; border-radius: 8px; cursor: pointer;
+    font-family: inherit; font-size: 13px; font-weight: 700;
+  }
+
+  /* ── Table ── */
+  #table-wrap { overflow-x: auto; }
+
+  table { width: 100%; border-collapse: collapse; min-width: 1050px; }
+
+  thead tr { background: var(--surface); position: sticky; top: 55px; }
+  thead th {
+    padding: 9px 12px; font-size: 10px; font-weight: 700;
+    letter-spacing: 1px; color: var(--muted); border-bottom: 1px solid var(--border);
+    cursor: pointer; user-select: none; white-space: nowrap;
+    transition: color .1s;
+  }
+  thead th:hover, thead th.sorted { color: var(--blue); }
+  thead th.right { text-align: right; }
+  thead th.left  { text-align: left; }
+
+  tbody tr { border-bottom: 1px solid #0b1828; transition: background .1s; }
+  tbody tr:nth-child(odd)  { background: var(--bg); }
+  tbody tr:nth-child(even) { background: #070e1a; }
+  tbody tr:hover { background: #0e2038 !important; }
+
+  td { padding: 8px 12px; font-size: 12px; white-space: nowrap; }
+  td.right { text-align: right; }
+  td.left  { text-align: left; }
+
+  /* ── Cell styles ── */
+  .symbol-cell { display: flex; align-items: center; gap: 8px; }
+  .sym-logo {
+    width: 22px; height: 22px; border-radius: 50%; object-fit: cover; flex-shrink: 0;
+    background: var(--surface2); font-size: 10px; color: var(--muted);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .sym-name  { font-weight: 700; color: #f9fafb; font-size: 13px; }
+  .sym-full  { font-size: 10px; color: #3d5268; max-width: 90px; overflow: hidden; text-overflow: ellipsis; }
+
+  .pos { color: var(--green); font-weight: 600; }
+  .neg { color: var(--red);   font-weight: 600; }
+  .neutral { color: var(--muted); }
+
+  .pro-badge {
+    display: inline-block; padding: 1px 8px; border-radius: 4px;
+    font-weight: 800;
+  }
+  .pro-hot   { color: var(--amber); background: rgba(245,158,11,.1); border: 1px solid rgba(245,158,11,.25); }
+  .pro-cold  { color: var(--muted); }
+  .smart-hot { color: var(--green); background: rgba(16,185,129,.1); border: 1px solid rgba(16,185,129,.25); }
+
+  .risk-warn { color: var(--amber); font-weight: 600; }
+  .risk-high { color: var(--red);   font-weight: 600; }
+  .risk-ok   { color: var(--muted); }
+
+  .bonding-bar { display: flex; align-items: center; gap: 6px; min-width: 110px; }
+  .bonding-track { flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
+  .bonding-fill  { height: 100%; border-radius: 2px; transition: width .4s; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .spin { display: inline-block; animation: spin 1s linear infinite; }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="header">
+  <div class="brand">
+    <span style="font-size:20px">⚡</span>
+    <div>
+      <div class="brand-name">AXIOM SCANNER</div>
+      <div class="brand-sub">MOBULA · SOLANA · TEMPS RÉEL</div>
+    </div>
+  </div>
+
+  <div class="tabs" id="main-tabs">
+    <button class="tab-btn active" data-tab="trending">📈 TRENDING</button>
+    <button class="tab-btn"        data-tab="pulse">🚀 PULSE</button>
+  </div>
+
+  <div class="tabs" id="pulse-tabs" style="display:none">
+    <button class="sub-btn" data-pulse="new">🆕 NEW</button>
+    <button class="sub-btn active" data-pulse="bonding">🔄 BONDING</button>
+    <button class="sub-btn" data-pulse="bonded">✅ BONDED</button>
+  </div>
+
+  <button id="reload-btn">↻ Actualiser</button>
+
+  <input id="filter-input" type="text" placeholder="Filtrer token…">
+
+  <div id="meta"></div>
+</div>
+
+<!-- Legend -->
+<div id="legend">
+  <span><span style="color:#f59e0b;font-weight:700">PRO ≥ 5</span> = signal fort</span>
+  <span><span style="color:#10b981">SMART</span> = wallets profitables</span>
+  <span><span style="color:#f59e0b">INS/SNP ≥ 20%</span> = attention</span>
+  <span><span style="color:#ef4444">INS/SNP ≥ 40%</span> = risque élevé</span>
+  <span style="margin-left:auto">Cliquez une colonne pour trier ↕</span>
+</div>
+
+<!-- Status -->
+<div id="status-bar"></div>
+
+<!-- Empty state -->
+<div id="empty">
+  <div class="icon">⚡</div>
+  <h2>Axiom Scanner</h2>
+  <p>Données Solana en temps réel via Mobula</p>
+  <button id="start-btn" onclick="loadData()">↻ Charger les données</button>
+</div>
+
+<!-- Table -->
+<div id="table-wrap" style="display:none">
+  <table>
+    <thead id="thead"></thead>
+    <tbody id="tbody"></tbody>
+  </table>
+</div>
+
+<script>
+const API_KEY = "5bfcc657-6d6e-4873-be32-3518913d125c";
+const BASE    = "https://api.mobula.io/api/2";
+
+let currentTab   = "trending";
+let currentPulse = "bonding";
+let allTokens    = [];
+let sortKey      = "proTradersCount";
+let sortDir      = "desc";
+let filterText   = "";
+
+// ── Formatters ──────────────────────────────────────────────────
+const fmtUSD = n => {
+  if (n == null || isNaN(n)) return "—";
+  if (Math.abs(n) >= 1e6) return "$" + (n/1e6).toFixed(2) + "M";
+  if (Math.abs(n) >= 1e3) return "$" + (n/1e3).toFixed(1) + "K";
+  return "$" + Number(n).toFixed(2);
+};
+const fmtNum = n => {
+  if (n == null || isNaN(n)) return "—";
+  if (n >= 1e6) return (n/1e6).toFixed(1)+"M";
+  if (n >= 1e3) return (n/1e3).toFixed(1)+"K";
+  return String(Math.round(n));
+};
+const fmtPrice = n => {
+  if (n == null || isNaN(n)) return "—";
+  if (n < 0.000001) return "$"+n.toExponential(2);
+  if (n < 0.001)    return "$"+n.toFixed(7);
+  if (n < 1)        return "$"+n.toFixed(4);
+  return "$"+n.toFixed(2);
+};
+const fmtPct = n => {
+  if (n == null || isNaN(n)) return null;
+  return (n > 0 ? "+" : "") + Number(n).toFixed(1) + "%";
+};
+
+// ── Normalize ───────────────────────────────────────────────────
+function norm(raw) {
+  const t = raw.token || {};
+  return {
+    address:           raw.address           || t.address || "",
+    symbol:            raw.symbol            || t.symbol  || "???",
+    name:              raw.name              || t.name    || "",
+    logo:              raw.logo              || t.logo    || null,
+    latest_price:      raw.latest_price      ?? raw.price ?? t.price,
+    price_change_5min: raw.price_change_5min,
+    price_change_1h:   raw.price_change_1h,
+    price_change_4h:   raw.price_change_4h,
+    market_cap:        raw.latest_market_cap ?? raw.market_cap,
+    liquidity:         raw.liquidity         ?? t.liquidity,
+    volume_1h:         raw.volume_1h,
+    buys_1h:           raw.buys_1h,
+    sells_1h:          raw.sells_1h,
+    proTradersCount:   raw.proTradersCount   ?? t.proTradersCount,
+    smartTradersCount: raw.smartTradersCount ?? t.smartTradersCount,
+    insidersCount:     raw.insidersCount     ?? t.insidersCount,
+    snipersCount:      raw.snipersCount      ?? t.snipersCount,
+    holdersCount:      raw.holdersCount      ?? t.holdersCount,
+    insidersHoldings:  raw.insidersHoldings  ?? t.insidersHoldingsPercentage,
+    snipersHoldings:   raw.snipersHoldings   ?? t.snipersHoldingsPercentage,
+    bondingPercentage: raw.bondingPercentage ?? t.bondingPercentage,
+  };
+}
+
+function extractList(json, section) {
+  if (!json) return [];
+  if (section && json[section]?.data) return json[section].data;
+  if (Array.isArray(json.data)) return json.data;
+  for (const v of Object.values(json)) {
+    if (v?.data && Array.isArray(v.data)) return v.data;
+    if (Array.isArray(v)) return v;
+  }
+  return [];
+}
+
+// ── Fetch ───────────────────────────────────────────────────────
+async function loadData() {
+  setStatus("info", "📡 Connexion à Mobula…");
+  document.getElementById("reload-btn").disabled = true;
+  document.getElementById("reload-btn").innerHTML = '<span class="spin">↻</span> Chargement…';
+
+  try {
+    const url = currentTab === "pulse"
+      ? `${BASE}/pulse?assetMode=true&chainId=solana:solana&model=default&poolTypes=pumpfun`
+      : `${BASE}/pulse?assetMode=true&chainId=solana:solana&sortBy=volume_1h&sortOrder=desc&limit=60`;
+
+    const res = await fetch(url, { headers: { Authorization: API_KEY } });
+    if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
+
+    const json = await res.json();
+    const section = currentTab === "pulse" ? currentPulse : null;
+    const list = extractList(json, section);
+
+    if (list.length === 0) throw new Error("Aucun token reçu pour cet onglet");
+
+    allTokens = list.map(norm);
+    clearStatus();
+    render();
+    updateMeta();
+
+  } catch (e) {
+    setStatus("error", "❌ " + e.message);
+  } finally {
+    document.getElementById("reload-btn").disabled = false;
+    document.getElementById("reload-btn").innerHTML = "↻ Actualiser";
+  }
+}
+
+// ── Render ──────────────────────────────────────────────────────
+const COLS_TRENDING = [
+  { key:"symbol",            label:"TOKEN",  align:"left",  w:145 },
+  { key:"latest_price",      label:"PRIX",   align:"right", w:95  },
+  { key:"price_change_5min", label:"5M %",   align:"right", w:68  },
+  { key:"price_change_1h",   label:"1H %",   align:"right", w:68  },
+  { key:"price_change_4h",   label:"4H %",   align:"right", w:68  },
+  { key:"market_cap",        label:"MCAP",   align:"right", w:90  },
+  { key:"liquidity",         label:"LIQ",    align:"right", w:90  },
+  { key:"volume_1h",         label:"VOL 1H", align:"right", w:90  },
+  { key:"proTradersCount",   label:"PRO 🔥", align:"right", w:72  },
+  { key:"smartTradersCount", label:"SMART",  align:"right", w:68  },
+  { key:"insidersCount",     label:"INSIDE", align:"right", w:68  },
+  { key:"snipersCount",      label:"SNIPER", align:"right", w:68  },
+  { key:"holdersCount",      label:"HOLD.",  align:"right", w:72  },
+  { key:"insidersHoldings",  label:"INS%",   align:"right", w:62  },
+  { key:"snipersHoldings",   label:"SNP%",   align:"right", w:62  },
+  { key:"buys_1h",           label:"BUYS",   align:"right", w:55  },
+  { key:"sells_1h",          label:"SELLS",  align:"right", w:55  },
+];
+
+const COLS_PULSE = [
+  { key:"symbol",            label:"TOKEN",   align:"left",  w:145 },
+  { key:"latest_price",      label:"PRIX",    align:"right", w:95  },
+  { key:"bondingPercentage", label:"BONDING", align:"right", w:150 },
+  { key:"market_cap",        label:"MCAP",    align:"right", w:90  },
+  { key:"liquidity",         label:"LIQ",     align:"right", w:90  },
+  { key:"volume_1h",         label:"VOL 1H",  align:"right", w:90  },
+  { key:"proTradersCount",   label:"PRO 🔥",  align:"right", w:72  },
+  { key:"smartTradersCount", label:"SMART",   align:"right", w:68  },
+  { key:"holdersCount",      label:"HOLD.",   align:"right", w:72  },
+  { key:"insidersHoldings",  label:"INS%",    align:"right", w:62  },
+  { key:"snipersHoldings",   label:"SNP%",    align:"right", w:62  },
+  { key:"buys_1h",           label:"BUYS",    align:"right", w:55  },
+  { key:"sells_1h",          label:"SELLS",   align:"right", w:55  },
+];
+
+function renderHeader(cols) {
+  const thead = document.getElementById("thead");
+  thead.innerHTML = "";
+  const tr = document.createElement("tr");
+  cols.forEach(col => {
+    const th = document.createElement("th");
+    th.className = col.align + (sortKey === col.key ? " sorted" : "");
+    th.style.width = col.w + "px";
+    th.textContent = col.label + (sortKey === col.key ? (sortDir === "desc" ? " ▼" : " ▲") : "");
+    th.onclick = () => {
+      if (sortKey === col.key) sortDir = sortDir === "desc" ? "asc" : "desc";
+      else { sortKey = col.key; sortDir = "desc"; }
+      render();
+    };
+    tr.appendChild(th);
+  });
+  thead.appendChild(tr);
+}
+
+function cellHTML(t, col) {
+  switch (col.key) {
+    case "symbol": {
+      const logo = t.logo
+        ? `<img src="${t.logo}" class="sym-logo" onerror="this.style.display='none'">`
+        : `<div class="sym-logo">${(t.symbol||"?")[0]}</div>`;
+      return `<div class="symbol-cell">${logo}<div><div class="sym-name">${t.symbol}</div><div class="sym-full">${t.name}</div></div></div>`;
+    }
+    case "latest_price":
+      return `<span style="color:#c9d8e8">${fmtPrice(t.latest_price)}</span>`;
+    case "price_change_5min":
+    case "price_change_1h":
+    case "price_change_4h": {
+      const v = t[col.key]; const s = fmtPct(v);
+      return s ? `<span class="${v>0?'pos':'neg'}">${s}</span>` : `<span class="neutral">—</span>`;
+    }
+    case "market_cap":
+    case "liquidity":
+    case "volume_1h":
+      return `<span style="color:#6b8499">${fmtUSD(t[col.key])}</span>`;
+    case "proTradersCount": {
+      const c = t.proTradersCount;
+      if (c == null) return `<span class="neutral">—</span>`;
+      return c >= 5
+        ? `<span class="pro-badge pro-hot">${c}</span>`
+        : `<span class="pro-cold">${c}</span>`;
+    }
+    case "smartTradersCount": {
+      const c = t.smartTradersCount;
+      if (c == null) return `<span class="neutral">—</span>`;
+      return c >= 3
+        ? `<span class="pro-badge smart-hot">${c}</span>`
+        : `<span class="neutral">${c ?? "—"}</span>`;
+    }
+    case "insidersCount":
+    case "snipersCount":
+      return `<span style="color:#6b8499">${t[col.key] ?? "—"}</span>`;
+    case "holdersCount":
+      return `<span style="color:#6b8499">${fmtNum(t.holdersCount)}</span>`;
+    case "insidersHoldings":
+    case "snipersHoldings": {
+      const v = t[col.key];
+      if (v == null || isNaN(v)) return `<span class="neutral">—</span>`;
+      const cls = v >= 40 ? "risk-high" : v >= 20 ? "risk-warn" : "risk-ok";
+      return `<span class="${cls}">${Number(v).toFixed(1)}%</span>`;
+    }
+    case "buys_1h":
+      return `<span class="pos">${fmtNum(t.buys_1h)}</span>`;
+    case "sells_1h":
+      return `<span class="neg">${fmtNum(t.sells_1h)}</span>`;
+    case "bondingPercentage": {
+      const p = t.bondingPercentage;
+      if (p == null) return `<span class="neutral">—</span>`;
+      const color = p >= 80 ? "#10b981" : p >= 50 ? "#f59e0b" : "#4a6070";
+      return `<div class="bonding-bar">
+        <div class="bonding-track"><div class="bonding-fill" style="width:${Math.min(p,100)}%;background:${color}"></div></div>
+        <span style="color:${color};font-size:11px;font-weight:600;min-width:34px">${p.toFixed(0)}%</span>
+      </div>`;
+    }
+    default: return "—";
+  }
+}
+
+function render() {
+  const cols = currentTab === "pulse" ? COLS_PULSE : COLS_TRENDING;
+  renderHeader(cols);
+
+  const filtered = allTokens.filter(t =>
+    !filterText || (t.symbol + t.name).toLowerCase().includes(filterText.toLowerCase())
+  );
+  const sorted = [...filtered].sort((a, b) => {
+    const av = a[sortKey] ?? -Infinity, bv = b[sortKey] ?? -Infinity;
+    return sortDir === "desc" ? bv - av : av - bv;
+  });
+
+  const tbody = document.getElementById("tbody");
+  tbody.innerHTML = sorted.map(t =>
+    `<tr>${cols.map(col => `<td class="${col.align}">${cellHTML(t, col)}</td>`).join("")}</tr>`
+  ).join("");
+
+  document.getElementById("empty").style.display       = "none";
+  document.getElementById("table-wrap").style.display  = "block";
+  updateMeta(sorted.length);
+}
+
+function updateMeta(count) {
+  const el = document.getElementById("meta");
+  const now = new Date().toLocaleTimeString("fr-FR");
+  el.textContent = `${count ?? allTokens.length} tokens · ${now}`;
+}
+
+function setStatus(type, msg) {
+  const el = document.getElementById("status-bar");
+  el.className = type;
+  el.textContent = msg;
+}
+function clearStatus() {
+  const el = document.getElementById("status-bar");
+  el.className = "";
+  el.style.display = "none";
+}
+
+// ── Events ──────────────────────────────────────────────────────
+document.getElementById("reload-btn").onclick = loadData;
+
+document.getElementById("main-tabs").onclick = e => {
+  const btn = e.target.closest(".tab-btn");
+  if (!btn) return;
+  currentTab = btn.dataset.tab;
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.toggle("active", b === btn));
+  document.getElementById("pulse-tabs").style.display = currentTab === "pulse" ? "flex" : "none";
+  sortKey = "proTradersCount"; sortDir = "desc";
+  allTokens = [];
+  document.getElementById("table-wrap").style.display = "none";
+  document.getElementById("empty").style.display = "block";
+  loadData();
+};
+
+document.getElementById("pulse-tabs").onclick = e => {
+  const btn = e.target.closest(".sub-btn");
+  if (!btn) return;
+  currentPulse = btn.dataset.pulse;
+  document.querySelectorAll(".sub-btn").forEach(b => b.classList.toggle("active", b === btn));
+  allTokens = [];
+  document.getElementById("table-wrap").style.display = "none";
+  loadData();
+};
+
+document.getElementById("filter-input").oninput = e => {
+  filterText = e.target.value;
+  if (allTokens.length > 0) render();
+};
+
+// Auto-refresh toutes les 30s
+setInterval(() => { if (allTokens.length > 0) loadData(); }, 30000);
+
+// Chargement initial
+loadData();
+</script>
+</body>
+</html>
